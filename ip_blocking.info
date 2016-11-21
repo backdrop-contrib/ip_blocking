@@ -1,0 +1,7 @@
+name = IP address blocking
+description = Enables blocking of IP addresses.
+package = Spam control
+backdrop = 1.x
+type = module
+configure = admin/config/people/ip-blocking
+version = 1.0.1 

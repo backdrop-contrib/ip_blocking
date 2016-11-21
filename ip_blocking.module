@@ -1,0 +1,97 @@
+<?php
+/**
+ * @file ip_blocking.module
+ */
+
+/**
+ * Implements hook_help().
+ * 
+ */
+function ip_blocking_help($path, $arg) {
+  if ($path == 'admin/help#ip_blocking') {
+    return t('Enables blocking of IP addresses.');
+  }
+}
+
+/**
+ * Implements hook_permission().
+ *
+ */
+function ip_blocking_permission() {
+  return array(
+    'block IP addresses' => array(
+      'title' => t('Administer IP address blocking')
+    ),
+  );
+}
+
+/**
+ * Implements hook_menu().
+ *
+ */
+function ip_blocking_menu() {
+  $items = array();
+
+  $items['admin/config/people/ip-blocking'] = array(
+    'title' => 'IP address blocking',
+    'description' => 'Manage blocked IP addresses.',
+    'page callback' => 'ip_blocking',
+    'access arguments' => array('block IP addresses'),
+    'file' => 'ip_blocking.admin.inc',
+    'weight' => 10,
+  );
+  $items['admin/config/people/ip-blocking/unblock/%blocked_ip'] = array(
+    'title' => 'Unblock IP address',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('ip_blocking_unblock', 5),
+    'access arguments' => array('block IP addresses'),
+    'file' => 'ip_blocking.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_boot().
+ *
+ */
+function ip_blocking_boot() {
+  
+  $ip = check_plain(ip_address());
+  
+  // Deny access to blocked IP address.
+  if (ip_is_denied($ip)) {
+    header($_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden');
+    print 'Sorry, IP address ' . $ip . ' has been banned.';
+    exit();
+  }
+}
+
+/**
+ * Checks to see if an IP address has been blocked.
+ *
+ * Blocked IP addresses are stored in the database only.
+ * @param $ip IP address to check.
+ *
+ * @return bool TRUE if access is denied, FALSE if access is allowed.
+ */
+function ip_is_denied($ip) {
+  $denied = FALSE;
+  
+  if (class_exists('Database', FALSE)) {
+    $denied = (bool)db_query("SELECT 1 FROM {blocked_ips} WHERE ip = :ip", array(':ip' => $ip))->fetchField();
+  }
+  
+  return $denied;
+}
+
+/**
+ * Retrieve a blocked IP address from the database (used on admin page).
+ *
+ * @param $iid integer The ID of the blocked IP address to retrieve.
+ *
+ * @return The blocked IP address from the database as an array.
+ */
+function blocked_ip_load($iid) {
+  return db_query("SELECT * FROM {blocked_ips} WHERE iid = :iid", array(':iid' => $iid))->fetchAssoc();
+}
