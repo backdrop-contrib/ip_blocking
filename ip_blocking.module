@@ -4,13 +4,15 @@
  */
 
 /**
- * Implements hook_help().
- * 
+ * Implements hook_config_info().
  */
-function ip_blocking_help($path, $arg) {
-  if ($path == 'admin/help#ip_blocking') {
-    return t('Enables blocking of IP addresses.');
-  }
+function ip_blocking_config_info() {
+  $prefixes['ip_blocking.settings'] = array(
+    'label' => t('IP address blocking'),
+    'group' => t('Configuration'),
+  );
+  
+  return $prefixes;
 }
 
 /**

@@ -40,12 +40,13 @@ function ip_blocking($default_ip = '') {
  */
 function ip_blocking_form($form, $form_state, $default_ip) {
   $form['ip'] = array(
-    '#title' => t('IP address'),
+    '#title' => t('Add IP address to list blocked'),
     '#type' => 'textfield',
     '#size' => 48,
     '#maxlength' => 40,
     '#default_value' => $default_ip,
     '#description' => t('Enter a valid IP address.'),
+    '#prefix' => '<p>' . t('On this page you can manage blocked IP addresses') . '</p>',
   );
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
