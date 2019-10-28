@@ -2,7 +2,8 @@ IP address blocking
 ===================
 
 Enables blocking of IP addresses. 
-This module just restore lost Drupal core functionality. 
+This module restores lost Drupal core functionality with some informative additions. 
+You can see when IP was blocked, who of users block this IP and reason for blocking (if specified).
 
 Installation
 ------------
@@ -17,6 +18,7 @@ and may be used for:
 
 - block an IP address:
   - enter a valid IP address (for example, 10.0.0.1);
+  - (optional) enter description of reason for blocking this IP;
   - click Add;
 
 - unblock previously blocked IP address:

@@ -13,11 +13,22 @@
  */
 function ip_blocking($default_ip = '') {
   $rows = array();
-  $header = array(t('Blocked IP addresses'), t('Operations'));
+  $header = array(t('Blocked IP address'), t('When blocked'), t('Blocked by'), t('Reason'), t('Unblock'));
   $result = db_query('SELECT * FROM {blocked_ips}');
   foreach ($result as $ip) {
+    $time = !empty($ip->time) ? format_date($ip->time, 'short') : t('N/A');
+    if (!empty($ip->uid)) {
+      $user = user_load($ip->uid);
+      $username = $user->name;
+    }
+    else {
+      $username = t('N/A');
+    }
     $rows[] = array(
       $ip->ip,
+      $time,
+      $username,
+      $ip->reason,
       l(t('unblock'), "admin/config/people/ip-blocking/unblock/$ip->iid"),
     );
   }
@@ -48,6 +59,14 @@ function ip_blocking_form($form, $form_state, $default_ip) {
     '#description' => t('Enter a valid IP address.'),
     '#prefix' => '<p>' . t('On this page you can manage blocked IP addresses') . '</p>',
   );
+  $form['reason'] = array(
+    '#title' => t('Reason of blocking (optional)'),
+    '#type' => 'textfield',
+    '#size' => 70,
+    '#maxlength' => 255,
+    '#default_value' => '',
+    '#description' => t('Short description of reason for blocking this IP, for example: "Drupalgeddon2 attack".'),
+  );
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
     '#type' => 'submit',
@@ -66,7 +85,7 @@ function ip_blocking_form_validate($form, &$form_state) {
     form_set_error('ip', t('This IP address is already blocked.'));
   }
   elseif ($ip == ip_address()) {
-    form_set_error('ip', t('You may not block your own IP address.'));
+    form_set_error('ip', t('You can not block your own IP address.'));
   }
   elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE) == FALSE) {
     form_set_error('ip', t('Enter a valid IP address.'));
@@ -74,10 +93,14 @@ function ip_blocking_form_validate($form, &$form_state) {
 }
 
 function ip_blocking_form_submit($form, &$form_state) {
-  $ip = trim($form_state['values']['ip']);
+  global $user;
+  $ip     = trim($form_state['values']['ip']);
+  $uid    = $user->uid;
+  $time   = time();
+  $reason = trim($form_state['values']['reason']);
   
   db_insert('blocked_ips')
-    ->fields(array('ip' => $ip))
+    ->fields(array('ip' => $ip, 'reason' => $reason, 'time' => $time, 'uid' => $uid))
     ->execute();
   
   backdrop_set_message(t('The IP address %ip has been blocked.', array('%ip' => $ip)));

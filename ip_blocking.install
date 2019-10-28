@@ -27,6 +27,25 @@ function ip_blocking_schema() {
         'not null' => TRUE,
         'default' => '',
       ),
+      'reason' => array(
+        'description' => 'Reason of blocking.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'uid' => array(
+        'description' => 'User identifier.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'time' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unix timestamp of when IP blocked.',
+      ),
     ),
     'indexes' => array(
       'ip' => array('ip'),
@@ -37,3 +56,35 @@ function ip_blocking_schema() {
   return $schema;
 }
  
+/**
+ *  Add new fields to database.
+ */
+function ip_blocking_update_1000() {
+  $fields = array(
+    'reason' => array(
+      'description' => 'Reason of blocking.',
+      'type' => 'varchar',
+      'length' => '255',
+      'not null' => FALSE,
+    ),
+    'uid' => array(
+      'description' => 'User identifier.',
+      'type' => 'int',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+    ),
+    'time' => array(
+      'type' => 'int',
+      'not null' => TRUE,
+      'default' => 0,
+      'description' => 'Unix timestamp of when IP blocked.',
+    ),
+  );
+  
+  foreach($fields as $field_name => $schema) {
+    if (!db_field_exists('blocked_ips', $field_name)) {
+      db_add_field('blocked_ips', $field_name, $schema);
+    }
+  }
+}
