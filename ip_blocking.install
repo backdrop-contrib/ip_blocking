@@ -88,3 +88,12 @@ function ip_blocking_update_1000() {
     }
   }
 }
+
+/**
+ *  Add and init new variable.
+ */
+function ip_blocking_update_1001() {
+  $config = config('ip_blocking.settings');
+  $config->set('return_404', 0);
+  $config->save();  
+}

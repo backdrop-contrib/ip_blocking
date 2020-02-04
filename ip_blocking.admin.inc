@@ -135,3 +135,50 @@ function ip_blocking_unblock_submit($form, &$form_state) {
   backdrop_set_message(t('The IP address %ip was unblocked.', array('%ip' => $blocked_ip['ip'])));
   $form_state['redirect'] = 'admin/config/people/ip-blocking';
 }
+
+/**
+ * Form for blocking IP additional settings.
+ *
+ */
+function ip_blocking_settings_form() {
+  $form = array();
+
+  $form['info'] = array(
+    '#markup' => '<p>' . t('Additional settings for module') . '</p>',
+  );
+  
+  $form['log_enabled'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable logging'),
+    '#default_value' => config_get('ip_blocking.settings', 'log_enabled'),
+    '#description' => t('Enable logging for access attempts from blocked IPs'), 
+  );
+  $form['return_404'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use 404 return code'),
+    '#default_value' => config_get('ip_blocking.settings', 'return_404'),
+    '#description' => t('Use 404 (Not Found) status code for visitors from blocked IP instead of default 403 (Access Denied)'), 
+  );
+
+  
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save settings'),
+  );
+  
+  return $form;
+}
+
+/**
+ * Process ip_blocking_settings_form form submissions.
+ */
+function ip_blocking_settings_form_submit($form, &$form_state) {
+  $config = config('ip_blocking.settings');
+
+  $config->set('log_enabled', $form_state['values']['log_enabled']);
+  $config->set('return_404',  $form_state['values']['return_404']);
+  $config->save();
+  
+  backdrop_set_message(t('The configuration options have been saved.'));
+}

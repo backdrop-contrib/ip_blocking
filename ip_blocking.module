@@ -35,13 +35,31 @@ function ip_blocking_menu() {
   $items = array();
 
   $items['admin/config/people/ip-blocking'] = array(
+    'type' => MENU_NORMAL_ITEM,
     'title' => 'IP address blocking',
     'description' => 'Manage blocked IP addresses.',
     'page callback' => 'ip_blocking',
     'access arguments' => array('block IP addresses'),
     'file' => 'ip_blocking.admin.inc',
-    'weight' => 10,
   );
+  
+  $items['admin/config/people/ip-blocking/main'] = array(
+    'title' => 'Main',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+    'weight' => 1,
+  );
+  
+  $items['admin/config/people/ip-blocking/settings'] = array(
+    'title' => 'Settings',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('ip_blocking_settings_form'),
+    'file' => 'ip_blocking.admin.inc',
+    'access arguments' => array('block IP addresses'),
+    'weight' => 2,
+  );
+  
+  
   $items['admin/config/people/ip-blocking/unblock/%blocked_ip'] = array(
     'title' => 'Unblock IP address',
     'page callback' => 'backdrop_get_form',
@@ -58,13 +76,29 @@ function ip_blocking_menu() {
  *
  */
 function ip_blocking_boot() {
-  
+
   $ip = check_plain(ip_address());
   
   // Deny access to blocked IP address.
   if (ip_is_denied($ip)) {
-    header($_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden');
-    print 'Sorry, IP address ' . $ip . ' has been banned.';
+    $config      = config('ip_blocking.settings');
+    $log_enabled = $config->get('log_enabled');
+    $return_404  = $config->get('return_404');
+    $request     = htmlspecialchars($_SERVER['REQUEST_URI']);
+    $ua_string   = isset($_SERVER['HTTP_USER_AGENT']) ? htmlspecialchars($_SERVER['HTTP_USER_AGENT']) : '';
+    
+    if($return_404) {
+      header($_SERVER['SERVER_PROTOCOL'] . ' 404  Not Found');
+    }
+    else {
+      header($_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden');
+      print 'Sorry, IP address ' . $ip . ' has been banned.';
+    }
+    
+    if($log_enabled) {
+      blocked_ip_log($ip, $request, $ua_string);
+    }
+
     exit();
   }
 }
@@ -96,4 +130,19 @@ function ip_is_denied($ip) {
  */
 function blocked_ip_load($iid) {
   return db_query("SELECT * FROM {blocked_ips} WHERE iid = :iid", array(':iid' => $iid))->fetchAssoc();
+}
+
+/**
+ * Log access attempt
+ * 
+ * @param string $ip
+ */
+function blocked_ip_log($ip, $request, $ua_string) {
+  $watchdog_message = 'Access attempt from blocked IP: ' . $ip . '; request: ' . $request . '; User-Agent: ' . $ua_string;
+  watchdog(
+    'blocked_ip',
+    $watchdog_message,
+    NULL,
+    WATCHDOG_WARNING
+  );
 }
