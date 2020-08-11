@@ -18,10 +18,17 @@ function ip_blocking($default_ip = '') {
   foreach ($result as $ip) {
     $time = !empty($ip->time) ? format_date($ip->time, 'short') : t('N/A');
     if (!empty($ip->uid)) {
-      $user = user_load($ip->uid);
-      $username = $user->name;
+      // Antiscan module
+      if ($ip->uid == ANTISCAN_MODULE_UID) {
+        $username = 'Antiscan module';
+      }
+      else {
+        $user = user_load($ip->uid);
+        $username = $user->name;
+      }
     }
     else {
+      // for IPs blocked before module ver. 1.0.3
       $username = t('N/A');
     }
     $rows[] = array(

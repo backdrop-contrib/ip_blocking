@@ -9,6 +9,10 @@ You can:
  - set a 404 (Not Found) status code for visitors from blocked IP instead of default 403 (Access Denied);
  - enable logging for access attempts from blocked IPs.
 
+New in version 1.x-1.0.5:
+ - display number of blocked IPs on the "Status report" page;
+ - integration with new module "Antiscan" ( https://backdropcms.org/project/antiscan)
+
 Installation
 ------------
 Install this module using the official Backdrop CMS instructions at 
