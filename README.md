@@ -11,8 +11,8 @@ You can:
 
 New in version 1.x-1.0.5:
  - display number of blocked IPs on the "Status report" page;
- - integration with new module "Antiscan" ( https://backdropcms.org/project/antiscan) for 
-   automatic block IP addresses used by bad crawlers or vulnerability scanners.
+ - integration with the new "Antiscan" module (https://backdropcms.org/project/antiscan) to 
+   automatically block IP addresses used by bad crawlers or vulnerability scanners.
 
 Installation
 ------------

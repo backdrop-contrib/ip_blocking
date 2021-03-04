@@ -2,7 +2,7 @@
 /**
  * @file ip_blocking.module
  */
-define('ANTISCAN_MODULE_UID', 10001); // user ID for Antiscan module
+define('ANTISCAN_MODULE_UID', 10001); // "user" ID for Antiscan module
 
 /**
  * Implements hook_config_info().

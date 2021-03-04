@@ -14,6 +14,11 @@ function ip_blocking_requirements($phase) {
   $t = get_t();
 
   if ($phase == 'install') {
+    if (module_exists('ban_ip')) {
+      $requirements['ban_ip']['description'] = $t('Please uninstall module "Ban IP" then try again.');
+      $requirements['ban_ip']['severity'] = REQUIREMENT_ERROR;
+    }
+    
     if (db_table_exists('blocked_ips')) {
       db_rename_table('blocked_ips', 'blocked_ips_d7');
       
