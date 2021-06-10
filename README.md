@@ -7,7 +7,8 @@ This module restores lost Drupal core functionality with some improvements.
 You can:  
  - see when IP was blocked, who of users block this IP and reason for blocking (if specified);
  - set a 404 (Not Found) status code for visitors from blocked IP instead of default 403 (Access Denied);
- - enable logging for access attempts from blocked IPs.
+ - enable logging for access attempts from blocked IPs;
+ - block or unblock IP from "Recent log messages" event pages (admin/reports/event/EVENT_NUMBER).
 
 New in version 1.x-1.0.5:
  - display number of blocked IPs on the "Status report" page;
@@ -31,6 +32,15 @@ and may be used for:
 
 - unblock previously blocked IP address:
     - beside an IP address, click "unblock", then confirm unblocking.
+
+While browsing "Recent log messages" (admin/reports/dblog) you can quickly review 
+an individual entry (admin/reports/event/EVENT_NUMBER) and block (or unblock) 
+an IP address from the "Operation" link.
+
+This link will be shown for events of types 'access denied', 'antiscan', 'blocked_ip', 'login_allowlist', 
+'page not found', 'system', 'user' only if IP address is valid and not the current user's IP address.
+
+**Screenshots** are available at https://findlab.net/projects/ip-address-blocking
 
 License
 -------
