@@ -180,7 +180,7 @@ function ip_blocking_preprocess_block(&$variables) {
       $type     = $rows[0][1];
       $message  = strip_tags($rows[5][1]);
       $ip       = $rows[7][1];
-      $types    = array('access denied', 'antiscan', 'ip_blocking', 'login_allowlist', 'page not found', 'system', 'user');
+      $types    = array('access denied', 'antiscan', 'ip_blocking', 'login_allowlist', 'page not found', 'system', 'user', 'php');
 
       if (in_array($type, $types)) {
         $link = ip_blocking_build_operations_link($ip, urlencode($message));

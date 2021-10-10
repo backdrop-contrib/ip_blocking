@@ -19,6 +19,9 @@ Installation
 ------------
 Install this module using the official Backdrop CMS instructions at https://backdropcms.org/guide/modules
 
+Note: if the "Ban IP" module is installed, you need to uninstall it first to avoid confusion when using the same, 
+but extended database table.
+
 Configuration and usage
 -----------------------
 Administration page is available via menu *Administration > Configuration > 
@@ -37,8 +40,8 @@ While browsing "Recent log messages" (admin/reports/dblog) you can quickly revie
 an individual entry (admin/reports/event/EVENT_NUMBER) and block (or unblock) 
 an IP address from the "Operation" link.
 
-This link will be shown for events of types 'access denied', 'antiscan', 'blocked_ip', 'login_allowlist', 
-'page not found', 'system', 'user' only if IP address is valid and not the current user's IP address.
+This link will be shown for events of types 'access denied', 'antiscan', 'ip_blocking', 'login_allowlist', 
+'page not found', 'system', 'user' and 'php' only if it is valid IP address, and not the IP address of the currently logged in user.
 
 **Screenshots** are available at https://findlab.net/projects/ip-address-blocking
 

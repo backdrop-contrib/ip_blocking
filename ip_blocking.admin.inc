@@ -12,10 +12,26 @@
  * for use as the default value of the IP address form field.
  */
 function ip_blocking($default_ip = '') {
-  $rows = array();
-  $header = array(t('Blocked IP address'), t('When blocked'), t('Blocked by'), t('Reason'), t('Unblock'));
-  $result = db_query('SELECT * FROM {blocked_ips}');
-  foreach ($result as $ip) {
+  $rows   = array();
+  $header = array(
+    array('data' => t('Blocked IP address'), 'field' => 'ip'),
+    array('data' => t('When blocked'),       'field' => 'time', 'sort' => 'asc'), 
+    array('data' => t('Blocked by'),         'field' => 'uid'),
+    array('data' => t('Reason'),             'field' => 'reason'),
+    array('data' => t('Unblock')),
+  );
+  
+  $select = db_select('blocked_ips', 'b')
+              ->extend('PagerDefault')
+              ->extend('TableSort');
+  
+  $select->fields('b', array('iid', 'ip', 'reason', 'uid', 'time'))
+         ->limit(50)
+         ->orderByHeader($header);
+  
+  $results = $select->execute();
+
+  foreach ($results as $ip) {
     $time = !empty($ip->time) ? format_date($ip->time, 'short') : t('N/A');
     if (!empty($ip->uid)) {
       // Antiscan module
@@ -31,6 +47,7 @@ function ip_blocking($default_ip = '') {
       // for IPs blocked before module ver. 1.0.3
       $username = t('N/A');
     }
+    
     $rows[] = array(
       $ip->ip,
       $time,
@@ -39,17 +56,16 @@ function ip_blocking($default_ip = '') {
       l(t('unblock'), "admin/config/people/ip-blocking/unblock/$ip->iid"),
     );
   }
-
+  
   $build['ip_blocking_form'] = backdrop_get_form('ip_blocking_form', $default_ip);
+  
+  $output = backdrop_render($build);
+  
+  $output .= theme('table', array('header' => $header, 'rows' => $rows ));
 
-  $build['ip_blocking_table'] = array(
-    '#theme' => 'table',
-    '#header' => $header,
-    '#rows' => $rows,
-    '#empty' => t('No blocked IP addresses available.'),
-  );
+  $output .= theme('pager');
 
-  return $build;
+  return $output;
 }
 
 /**
