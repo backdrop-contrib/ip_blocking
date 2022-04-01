@@ -1,5 +1,7 @@
 {
   "_config_name": "ip_blocking.settings",
   "log_enabled": 0,
-  "return_404": 0
-} 
+  "return_404": 0,
+  "block_ip_user_cancel" : 0,
+  "block_ip_user_multiple_cancel" : 0
+}
