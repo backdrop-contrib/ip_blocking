@@ -137,10 +137,10 @@ function ip_blocking_form_user_cancel_confirm_form_alter(&$form, &$form_state, $
     '#tree' => TRUE,
     '#weight' => 80,
   );
-  $form['ip_blocking']['block_ip_user_cancel'] = array(
+  $form['ip_blocking']['ip_blocking_user_cancel'] = array(
     '#type' => 'checkbox',
     '#title' => t("Block this user's IP address(es)."),
-    '#default_value' => config_get('ip_blocking.settings', 'block_ip_user_cancel'),
+    '#default_value' => state_get('ip_blocking_user_cancel'),
   );
   $form['#submit'][] = 'ip_blocking_form_user_cancel_confirm_form_submit';
 }
@@ -149,8 +149,8 @@ function ip_blocking_form_user_cancel_confirm_form_alter(&$form, &$form_state, $
  * Submission function for blocking the IP address of a cancelled user.
  */
 function ip_blocking_form_user_cancel_confirm_form_submit($form, &$form_state) {
-  $block_ip = $form_state['values']['ip_blocking']['block_ip_user_cancel'];
-  config_set('ip_blocking.settings', 'block_ip_user_cancel', $block_ip);
+  $block_ip = $form_state['values']['ip_blocking']['ip_blocking_user_cancel'];
+  state_set('ip_blocking_user_cancel', $block_ip);
   if (!$block_ip) {
     return;
   }
@@ -202,10 +202,10 @@ function ip_blocking_form_user_multiple_cancel_confirm_alter(&$form, &$form_stat
     '#tree' => TRUE,
     '#weight' => 80,
   );
-  $form['ip_blocking']['block_ip_user_multiple_cancel'] = array(
+  $form['ip_blocking']['ip_blocking_user_multiple_cancel'] = array(
     '#type' => 'checkbox',
     '#title' => t("Block cancelled users' IP addresses."),
-    '#default_value' => config_get('ip_blocking.settings', 'block_ip_user_multiple_cancel'),
+    '#default_value' => state_get('ip_blocking_user_multiple_cancel'),
   );
   $form['#submit'][] = 'ip_blocking_form_user_multiple_cancel_submit';
 }
@@ -214,8 +214,8 @@ function ip_blocking_form_user_multiple_cancel_confirm_alter(&$form, &$form_stat
  * Submission function for blocking the IP address of multiple cancelled users.
  */
 function ip_blocking_form_user_multiple_cancel_submit($form, &$form_state) {
-  $block_ip = $form_state['values']['ip_blocking']['block_ip_user_multiple_cancel'];
-  config_set('ip_blocking.settings', 'block_ip_user_multiple_cancel', $block_ip);
+  $block_ip = $form_state['values']['ip_blocking']['ip_blocking_user_multiple_cancel'];
+  state_set('ip_blocking_user_multiple_cancel', $block_ip);
   if (!$block_ip) {
     return;
   }
