@@ -52,7 +52,7 @@ function ip_blocking($default_ip = '') {
       $ip->ip,
       $time,
       $username,
-      $ip->reason,
+      check_plain($ip->reason),
       l(t('unblock'), "admin/config/people/ip-blocking/unblock/$ip->iid"),
     );
   }
