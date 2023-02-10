@@ -164,20 +164,20 @@ function ip_blocking_settings_form() {
   $form = array();
 
   $form['info'] = array(
-    '#markup' => '<p>' . t('Additional settings for module') . '</p>',
+    '#markup' => '<p>' . t('Additional settings') . ':</p>',
   );
 
   $form['log_enabled'] = array(
     '#type' => 'checkbox',
     '#title' => t('Enable logging'),
     '#default_value' => config_get('ip_blocking.settings', 'log_enabled'),
-    '#description' => t('Enable logging for access attempts from blocked IPs'),
+    '#description' => t('Enable logging of access attempts from blocked IPs and actions of this module.'),
   );
   $form['return_404'] = array(
     '#type' => 'checkbox',
     '#title' => t('Return code 404'),
     '#default_value' => config_get('ip_blocking.settings', 'return_404'),
-    '#description' => t('Return 404 (Not Found) status code for visitors from blocked IP instead of default 403 (Access Denied)'),
+    '#description' => t('Return 404 (Not Found) status code for visitors from blocked IP instead of default 403 (Access Denied).'),
   );
 
 

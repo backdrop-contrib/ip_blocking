@@ -213,7 +213,7 @@ function ip_blocking_get_action_link($ip, $message) {
   $action_link = '';
   // If the IP is already blocked, display an unblock link or vice versa.
   if (ip_is_denied($ip)) {
-    $action_link .= t('IP blocked') . ' - ';
+    $action_link .= '<b>' . t('IP @ip blocked', array('@ip' => $ip)) . '</b> - ';
     $action = 'unblock';
   }
   else {
@@ -273,7 +273,13 @@ function ip_blocking_block_ip($ip, $reason) {
   $uid         = $user->uid;
   $config      = config('ip_blocking.settings');
   $log_enabled = $config->get('log_enabled');
-  $reason_dec  = 'Request: ' . urldecode($reason);
+
+  if (backdrop_strlen($reason) > 250) {
+    $reason_dec = 'Request: ' . urldecode(substr($reason, 0, 250)) . ' ... ';
+  }
+  else {
+    $reason_dec  = 'Request: ' . urldecode($reason);
+  }
 
   // Insert the record to DB.
   db_insert('blocked_ips')
