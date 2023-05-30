@@ -77,7 +77,7 @@ function ip_blocking_form($form, $form_state, $default_ip) {
     '#maxlength' => 40,
     '#default_value' => $default_ip,
     '#description' => t('Enter a valid IP address.'),
-    '#prefix' => '<p>' . t('On this page you can manage blocked IP addresses') . '</p>',
+    '#prefix' => '<p>' . t('You can manage blocked IP addresses on this page') . '</p>',
   );
   $form['reason'] = array(
     '#title' => t('Reason for blocking (optional)'),
@@ -85,7 +85,7 @@ function ip_blocking_form($form, $form_state, $default_ip) {
     '#size' => 70,
     '#maxlength' => 255,
     '#default_value' => '',
-    '#description' => t('Short description of reason for blocking this IP, for example: "Drupalgeddon2 attack".'),
+    '#description' => t('Short description of the reason for blocking this IP, e.g: "Drupalgeddon2 attack".'),
   );
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
@@ -177,7 +177,7 @@ function ip_blocking_settings_form() {
     '#type' => 'checkbox',
     '#title' => t('Return code 404'),
     '#default_value' => config_get('ip_blocking.settings', 'return_404'),
-    '#description' => t('Return 404 (Not Found) status code for visitors from blocked IP instead of default 403 (Access Denied).'),
+    '#description' => t('Return a 404 (Not Found) status code for visitors from blocked IP instead of the default 403 (Access Denied).'),
   );
 
 
