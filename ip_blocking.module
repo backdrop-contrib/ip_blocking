@@ -9,7 +9,7 @@ define('ANTISCAN_MODULE_UID', 10001); // "user" ID for Antiscan module
  */
 function ip_blocking_config_info() {
   $prefixes['ip_blocking.settings'] = array(
-    'label' => t('IP address blocking'),
+    'label' => t('IP Address Blocking'),
     'group' => t('Configuration'),
   );
 
@@ -23,7 +23,7 @@ function ip_blocking_config_info() {
 function ip_blocking_permission() {
   return array(
     'block IP addresses' => array(
-      'title' => t('Administer IP address blocking')
+      'title' => t('Administer IP Address Blocking')
     ),
   );
 }
@@ -37,7 +37,7 @@ function ip_blocking_menu() {
 
   $items['admin/config/people/ip-blocking'] = array(
     'type' => MENU_NORMAL_ITEM,
-    'title' => 'IP address blocking',
+    'title' => 'IP Address Blocking',
     'description' => 'Manage blocked IP addresses.',
     'page callback' => 'ip_blocking',
     'access arguments' => array('block IP addresses'),
@@ -59,6 +59,18 @@ function ip_blocking_menu() {
     'access arguments' => array('block IP addresses'),
     'weight' => 2,
   );
+
+  if (db_table_exists('blocked_ips_d7')) {
+    $items['admin/config/people/ip-blocking/orphaned_table'] = array(
+      'title' => 'Orphaned table',
+      'type' => MENU_LOCAL_TASK,
+      'page callback' => 'backdrop_get_form',
+      'page arguments' => array('ip_blocking_orphaned_table_form'),
+      'file' => 'ip_blocking.admin.inc',
+      'access arguments' => array('block IP addresses'),
+      'weight' => 3,
+    );
+  }
 
   $items['admin/config/people/ip-blocking/unblock/%blocked_ip'] = array(
     'title' => 'Unblock IP address',
@@ -172,13 +184,12 @@ function blocked_ip_log($ip, $request, $ua_string) {
  */
 function ip_blocking_preprocess_block(&$variables) {
   if (arg(0) == 'admin' && arg(1) == 'reports' && arg(2) == 'event') {
-
     if (isset($variables['content']['dblog_table'])) {
       $rows     = $variables['content']['dblog_table']['#rows'];
       $type     = $rows[0][1];
       $message  = strip_tags($rows[5][1]);
       $ip       = $rows[7][1];
-      $types    = array('access denied', 'antiscan', 'ip_blocking', 'login_allowlist', 'page not found', 'system', 'user', 'php');
+      $types    = array('access denied', 'antiscan', 'ip_blocking', 'login_allowlist', 'page not found', 'system', 'user', 'php', 'ajax', 'search');
 
       if (in_array($type, $types)) {
         $link = ip_blocking_build_operations_links($ip, urlencode($message));
@@ -250,9 +261,8 @@ function ip_blocking_check_ip($ip) {
 function ip_blocking_event_block($ip, $reason) {
   $destination = backdrop_get_destination();
   if (ip_blocking_check_ip($ip)) {
-    ip_blocking_block_ip($ip, $reason);
+    ip_blocking_block_ip($ip, $reason, 'dblog_event');
     backdrop_set_message(t('The IP address %ip has been blocked.', array('%ip' => $ip)));
-    $message = t('The IP address %ip has been blocked.', array('%ip' => $ip));
   }
   else {
     backdrop_set_message(t('Unable to block the IP address %ip because it is not valid, or it is your current IP address.'),
@@ -266,9 +276,10 @@ function ip_blocking_event_block($ip, $reason) {
  * Block an IP address from the "Operation" link.
  * @param $ip
  * @param $reason
+ * @param $type
  * @return void
  */
-function ip_blocking_block_ip($ip, $reason) {
+function ip_blocking_block_ip($ip, $reason, $type) {
   global $user;
   $uid         = $user->uid;
   $config      = config('ip_blocking.settings');
@@ -283,7 +294,7 @@ function ip_blocking_block_ip($ip, $reason) {
 
   // Insert the record to DB.
   db_insert('blocked_ips')
-    ->fields(array('ip' => $ip, 'reason' => $reason_dec, 'time' => time(), 'uid' => $uid))
+    ->fields(array('ip' => $ip, 'reason' => $reason_dec, 'time' => time(), 'uid' => $uid, 'type' => $type))
     ->execute();
 
   if ($log_enabled) {
@@ -305,17 +316,12 @@ function ip_blocking_event_unblock($ip) {
   $destination = backdrop_get_destination();
   if (ip_blocking_check_ip($ip)) {
     ip_blocking_unblock_ip($ip);
-    backdrop_set_message(t('The IP address %ip has been unblocked.', array(
-      '%ip' => $ip,
-    )));
+    backdrop_set_message(t('The IP address %ip has been unblocked.', array('%ip' => $ip,)));
   }
   else {
-    backdrop_set_message(t('Unable to unblock the IP address %ip because it is not valid.'), array(
-      '%ip' => $ip,
-    ), 'error');
+    backdrop_set_message(t('Unable to unblock the IP address %ip because it is not valid.'), array('%ip' => $ip, ), 'error');
   }
-
- backdrop_goto($destination);
+  backdrop_goto($destination);
 }
 
 /**

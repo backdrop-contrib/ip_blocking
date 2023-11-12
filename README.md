@@ -1,27 +1,28 @@
-IP address blocking
+IP Address Blocking
 ===================
 
-Allows you to block IP addresses.  
-This module restores the lost functionality of the Drupal core. It comes with a few improvements.
+Allows you to block IP addresses.
+This module restores the lost functionality from the Drupal core.
+It also comes with a number of improvements.
 
-You can:
- - see when an IP was blocked, who blocked that IP and the reason for the block (if specified);
- - set a 404 (Not Found) status code for visitors from blocked IPs instead of the default 403 (Access Denied);
- - enable logging of access attempts from blocked IPs;
- - from the "Recent log messages" event pages (admin/reports/event/EVENT_NUMBER) you can easily block or unblock an IP
-   and check the status of this IP on the [AbuseIPDB](https://www.abuseipdb.com).
+Options available:
 
-New in version 1.x-1.0.5:
- - display of the number of blocked IPs on the "Status report" page;
- - integration with the new "Antiscan" module (https://backdropcms.org/project/antiscan) to
-   automatically block IP addresses used by bad crawlers or vulnerability scanners.
+  - see when an IP was blocked, who blocked that IP and the reason for the block (if specified);
+  - set a 404 (Not Found) status code for visitors from blocked IPs instead of the default 403 (Access Denied);
+  - enable logging of access attempts from blocked IPs;
+  - from the "Recent log messages" event pages (admin/reports/event/EVENT_NUMBER) you can easily block or unblock an IP
+    and check the status of this IP on the [AbuseIPDB](https://www.abuseipdb.com);
+  - view of the number of blocked IPs on the "Status report" page;
+  - get integration with the "Antiscan" module (https://backdropcms.org/project/antiscan) to
+    automatically block IP addresses used by bad crawlers or vulnerability scanners;
+  - use the "AbuseIPDB Report" module (https://backdropcms.org/project/abuseipdb_report) to send
+    manual or automatic reports to the [AbuseIPDB](https://www.abuseipdb.com/) database.
 
 Installation
 ------------
 Install this module using the official Backdrop CMS instructions at https://backdropcms.org/guide/modules
 
-Note: if the "Ban IP" module is installed, you must to uninstall it first to avoid confusion when using the same
-but extended database table.
+Note: If you have the "Ban IP" module installed, you will need to uninstall it first.
 
 Configuration and usage
 -----------------------
@@ -34,17 +35,43 @@ and can be used to:
     - (optional) enter description of the reason for blocking this IP;
     - click Add;
 
-- unblock a previously blocked IP address:
-    - click "unblock" next to an IP address and confirm the unblocking.
+- unblock or check status a previously blocked IP address:
+    - in the table below the form, click "unblock" for the IP address in the "Operation" column, and then confirm the unblock;
+    - In the same column click "check" to check the status of this IP on [AbuseIPDB](https://www.abuseipdb.com) (opens in a new tab).
 
 While browsing "Recent log messages" (admin/reports/dblog) you can quickly review
 an individual entry (admin/reports/event/EVENT_NUMBER) and block (or unblock)
 an IP address and check the status of this IP on [AbuseIPDB](https://www.abuseipdb.com) from the "Operation" links.
 
-This link is displayed for 'access denied', 'antiscan', 'ip_blocking', 'login_allowlist',
-'page not found', 'system', 'user' and 'php' events only if the event has a valid IP address and not the IP address of the currently logged in user.
+This link will be displayed for 'access denied', 'antiscan', 'ip_blocking', 'login_allowlist', 'search',
+'page not found', 'system', 'user', 'php' and 'ajax' event types if the event has a valid IP address and not the IP address of the currently logged in user.
 
 **Screenshots** are available at https://findlab.net/projects/ip-address-blocking
+
+Known issues
+------------
+Sometimes you may see in log messages like this:
+> "Warning: Cannot modify header information - headers already sent by (output started at /core/includes/bootstrap.inc:3132) in ip_blocking_boot() (line 113 of /modules/contrib/ip_blocking/ip_blocking.module)"
+
+Here is the explanation.
+
+When Backdrop served a cached page, the 'X-Backdrop-Cache: HIT' and 'cache-control' headers were sent with the obsolete entries before they were actually generated for the request.
+
+To avoid such messages and incorrect module actions (in such cases can not get in time to reject blocked IP) you have two options:
+
+  - you can disable prefetching for cached pages: go to 'admin/config/development/performance' and within the 'Caching' fieldset uncheck the 'Use background fetch for cached pages' checkbox, then press the 'Save configuration' button;
+  - add the option '$settings['page_cache_invoke_hooks'] = TRUE;'   to your 'settings.php' file.
+
+Disabling prefetching for cached pages (first option) is sufficient to avoid such collisions in most cases.
+
+Note for Drupal 7 migration
+---------------------------
+If you install this module on a site that has been upgraded from Drupal 7 and has blocked IPs (in the 'blocked_ips' table),
+this module will rename that table to 'blocked_ips_d7') and create its own 'blocked_ips' table with 4 additional columns: 'reason', 'uid, 'time' and 'type'.
+
+After installation, you can reimport previously blocked IPs from the 'blocked_ips_d7' table,
+or delete this table if you do not need it via the link on the "Status Report" page
+or by going to 'admin/config/people/ip-blocking/orphaned_table'.
 
 License
 -------

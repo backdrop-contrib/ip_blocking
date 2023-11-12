@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * Install, update and uninstall functions for the IP address blocking module.
@@ -10,7 +9,6 @@
  */
 function ip_blocking_requirements($phase) {
   $requirements = array();
-  
   $t = get_t();
 
   if ($phase == 'install') {
@@ -18,10 +16,10 @@ function ip_blocking_requirements($phase) {
       $requirements['ban_ip']['description'] = $t('Please uninstall module "Ban IP" then try again.');
       $requirements['ban_ip']['severity'] = REQUIREMENT_ERROR;
     }
-    
+
     if (db_table_exists('blocked_ips')) {
       db_rename_table('blocked_ips', 'blocked_ips_d7');
-      
+
       $requirements['table_exists'] = array(
         'title' => $t('DB table already exists'),
         'description' => $t('DB table named "blocked_ips" already exists.'),
@@ -32,23 +30,27 @@ function ip_blocking_requirements($phase) {
   }
 
   if ($phase == 'runtime') {
-    $result = db_query('SELECT iid FROM {blocked_ips}');
-    $count = $result->rowCount();
-    
-    if ($count > 0) {
-      $url = url('admin/config/people/ip-blocking');
-      $requirements['ip_blocking'] = array(
-        'title' => t('IP address blocking'),
-        'value' => t('@count IP-address(es) blocked. <a href="@url">Manage blocked IPs</a>',
-        array('@count' => $count, '@url' => $url)),
-        'severity' => REQUIREMENT_INFO,
-      );
-    } 
-    
+    if (db_table_exists('blocked_ips')) {
+      $result = db_query('SELECT iid FROM {blocked_ips}');
+      $count = $result->rowCount();
+
+      if ($count > 0) {
+        $url = url('admin/config/people/ip-blocking');
+        $requirements['ip_blocking'] = array(
+          'title' => t('IP address blocking'),
+          'value' => t('@count IP-address(es) blocked. <a href="@url">Manage blocked IPs</a>',
+            array('@count' => $count, '@url' => $url)),
+          'severity' => REQUIREMENT_INFO,
+        );
+      }
+    }
+
     if (db_table_exists('blocked_ips_d7')) {
+      $table = url('admin/config/people/ip-blocking/orphaned_table');
       $requirements['blocked_ips_d7'] = array(
         'title' => $t('Database orphaned table'),
-        'value' => $t("A table named 'blocked_ips_d7' inherited from Drupal 7 can be safely deleted if you don't need data from this table."),
+        'value' => $t("A table called 'blocked_ips_d7' inherited from Drupal 7 can be deleted if you don't need it, or you can import data from <a href='@table'>this table</a>.",
+        array('@table' => $table)),
         'severity' => REQUIREMENT_INFO,
       );
     }
@@ -62,7 +64,7 @@ function ip_blocking_requirements($phase) {
  */
 function ip_blocking_schema() {
   $schema = array();
-  
+
   $schema['blocked_ips'] = array(
     'description' => 'Stores blocked IP addresses.',
     'fields' => array(
@@ -93,10 +95,17 @@ function ip_blocking_schema() {
         'default' => 0,
       ),
       'time' => array(
+        'description' => 'Unix timestamp of when IP blocked.',
         'type' => 'int',
         'not null' => TRUE,
         'default' => 0,
-        'description' => 'Unix timestamp of when IP blocked.',
+      ),
+      'type' => array(
+        'description' => 'Type of event',
+        'type' => 'varchar',
+        'length' => 15,
+        'not null' => FALSE,
+        'default' => '',
       ),
     ),
     'indexes' => array(
@@ -104,10 +113,10 @@ function ip_blocking_schema() {
     ),
     'primary key' => array('iid'),
   );
-  
+
   return $schema;
 }
- 
+
 /**
  *  Add new fields to database.
  */
@@ -133,7 +142,7 @@ function ip_blocking_update_1000() {
       'description' => 'Unix timestamp of when IP blocked.',
     ),
   );
-  
+
   foreach($fields as $field_name => $schema) {
     if (!db_field_exists('blocked_ips', $field_name)) {
       db_add_field('blocked_ips', $field_name, $schema);
@@ -147,5 +156,26 @@ function ip_blocking_update_1000() {
 function ip_blocking_update_1001() {
   $config = config('ip_blocking.settings');
   $config->set('return_404', 0);
-  $config->save();  
+  $config->save();
+}
+
+/**
+ *  1) add and init new variable;
+ *  2) add new column to table.
+ */
+function ip_blocking_update_1002() {
+  $config = config('ip_blocking.settings');
+  $config->set('number_of_items', 50);
+  $config->save();
+
+  if (!db_field_exists('blocked_ips', 'type')) {
+    $spec = array(
+      'description' => 'Type of event',
+      'type' => 'varchar',
+      'length' => 15,
+      'not null' => FALSE,
+      'default' => '',
+    );
+    db_add_field('blocked_ips', 'type', $spec);
+  }
 }

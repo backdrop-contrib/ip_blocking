@@ -12,13 +12,14 @@
  * for use as the default value of the IP address form field.
  */
 function ip_blocking($default_ip = '') {
+  $number_of_items = config_get('ip_blocking.settings', 'number_of_items');
   $rows   = array();
   $header = array(
-    array('data' => t('Blocked IP address'), 'field' => 'ip'),
-    array('data' => t('When blocked'),       'field' => 'time', 'sort' => 'asc'),
-    array('data' => t('Blocked by'),         'field' => 'uid'),
-    array('data' => t('Reason'),             'field' => 'reason'),
-    array('data' => t('Unblock')),
+    array('data' => t('Blocked IP'), 'field' => 'ip'),
+    array('data' => t('Time'),       'field' => 'time', 'sort' => 'asc'),
+    array('data' => t('Blocker'),    'field' => 'uid'),
+    array('data' => t('Reason'),     'field' => 'reason'),
+    array('data' => t('Operations')),
   );
 
   $select = db_select('blocked_ips', 'b')
@@ -26,7 +27,7 @@ function ip_blocking($default_ip = '') {
               ->extend('TableSort');
 
   $select->fields('b', array('iid', 'ip', 'reason', 'uid', 'time'))
-         ->limit(50)
+         ->limit($number_of_items)
          ->orderByHeader($header);
 
   $results = $select->execute();
@@ -53,13 +54,17 @@ function ip_blocking($default_ip = '') {
       $time,
       $username,
       check_plain($ip->reason),
-      l(t('unblock'), "admin/config/people/ip-blocking/unblock/$ip->iid"),
+      l(t('unblock'), "admin/config/people/ip-blocking/unblock/$ip->iid",
+        array('attributes' => array('title' => 'Unblock this IP')))
+      . '&nbsp;|&nbsp;' .
+      l(t('check'), "https://www.abuseipdb.com/check/$ip->ip",
+        array('attributes' => array('target' => '_blank', 'title' => 'Check IP status in AbuseIPDB'))),
     );
   }
 
   $build['ip_blocking_form'] = backdrop_get_form('ip_blocking_form', $default_ip);
   $output = backdrop_render($build);
-  $output .= theme('table', array('header' => $header, 'rows' => $rows ));
+  $output .= theme('table', array('header' => $header, 'rows' => $rows));
   $output .= theme('pager');
 
   return $output;
@@ -69,20 +74,27 @@ function ip_blocking($default_ip = '') {
  * Define the form for blocking IP addresses.
  *
  */
-function ip_blocking_form($form, $form_state, $default_ip) {
+function ip_blocking_form($form, &$form_state, $default_ip) {
+  $form['#attached']['css'] = array(
+    backdrop_get_path('module', 'ip_blocking') . '/css/ip_blocking.admin.css',
+  );
+
   $form['ip'] = array(
     '#title' => t('Add IP address to list blocked'),
     '#type' => 'textfield',
-    '#size' => 48,
+    '#size' => 34,
     '#maxlength' => 40,
     '#default_value' => $default_ip,
     '#description' => t('Enter a valid IP address.'),
-    '#prefix' => '<p>' . t('You can manage blocked IP addresses on this page') . '</p>',
+    '#prefix' => '<p>' . t('The IP addresses listed below are blocked from this site. Blocked addresses will be completely denied access to the site and will instead see a short message explaining the situation or a 404 error page (of your choice using the "Settings" tab above).') .
+    '<br>' . t('From the "Operations" column you can unblock any IP and check its status in AbuseIPDB (opens in a new tab).') . '</p>',
+
+
   );
   $form['reason'] = array(
     '#title' => t('Reason for blocking (optional)'),
     '#type' => 'textfield',
-    '#size' => 70,
+    '#size' => 52,
     '#maxlength' => 255,
     '#default_value' => '',
     '#description' => t('Short description of the reason for blocking this IP, e.g: "Drupalgeddon2 attack".'),
@@ -107,7 +119,7 @@ function ip_blocking_form_validate($form, &$form_state) {
   elseif ($ip == ip_address()) {
     form_set_error('ip', t('You can not block your own IP address.'));
   }
-  elseif (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE) == FALSE) {
+  elseif (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_RES_RANGE)) {
     form_set_error('ip', t('Enter a valid IP address.'));
   }
 }
@@ -120,12 +132,11 @@ function ip_blocking_form_submit($form, &$form_state) {
   $reason = trim($form_state['values']['reason']);
 
   db_insert('blocked_ips')
-    ->fields(array('ip' => $ip, 'reason' => $reason, 'time' => $time, 'uid' => $uid))
+    ->fields(array('ip' => $ip, 'reason' => $reason, 'time' => $time, 'uid' => $uid, 'type' => 'admin_form'))
     ->execute();
 
   backdrop_set_message(t('The IP address %ip has been blocked.', array('%ip' => $ip)));
   $form_state['redirect'] = 'admin/config/people/ip-blocking';
-  return;
 }
 
 /**
@@ -160,11 +171,18 @@ function ip_blocking_unblock_submit($form, &$form_state) {
  * Form for blocking IP additional settings.
  *
  */
-function ip_blocking_settings_form() {
-  $form = array();
-
-  $form['info'] = array(
-    '#markup' => '<p>' . t('Additional settings') . ':</p>',
+function ip_blocking_settings_form($form, &$form_state) {
+  $form['number_of_items'] = array(
+    '#type' => 'select',
+    '#title' => t('Blocked IPs table pager'),
+    '#options' => array(
+      25 => t('25 items per page'),
+      50 => t('50 items per page'),
+      75 => t('75 items per page'),
+      100 => t('100 items per page'),
+    ),
+    '#default_value' => config_get('ip_blocking.settings', 'number_of_items'),
+    '#description' => t('Display a specified number of items per page in the blocked IPs table.'),
   );
 
   $form['log_enabled'] = array(
@@ -173,13 +191,13 @@ function ip_blocking_settings_form() {
     '#default_value' => config_get('ip_blocking.settings', 'log_enabled'),
     '#description' => t('Enable logging of access attempts from blocked IPs and actions of this module.'),
   );
+
   $form['return_404'] = array(
     '#type' => 'checkbox',
     '#title' => t('Return code 404'),
     '#default_value' => config_get('ip_blocking.settings', 'return_404'),
     '#description' => t('Return a 404 (Not Found) status code for visitors from blocked IP instead of the default 403 (Access Denied).'),
   );
-
 
   $form['actions'] = array('#type' => 'actions');
   $form['actions']['submit'] = array(
@@ -196,9 +214,122 @@ function ip_blocking_settings_form() {
 function ip_blocking_settings_form_submit($form, &$form_state) {
   $config = config('ip_blocking.settings');
 
-  $config->set('log_enabled', $form_state['values']['log_enabled']);
-  $config->set('return_404',  $form_state['values']['return_404']);
+  $config->set('number_of_items', $form_state['values']['number_of_items']);
+  $config->set('log_enabled',     $form_state['values']['log_enabled']);
+  $config->set('return_404',      $form_state['values']['return_404']);
   $config->save();
 
   backdrop_set_message(t('The configuration options have been saved.'));
+}
+
+/**
+ * Define the form for dealing with orphaned table.
+ *
+ */
+function ip_blocking_orphaned_table_form($form, &$form_state) {
+  if (db_table_exists('blocked_ips_d7')) {
+    $count_ips = db_select('blocked_ips_d7')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    $form['info'] = array(
+      '#markup' =>  '<p>' . t('Currently database table named "blocked_ips_d7" contains @count_ips records.',
+        array('@count_ips' => $count_ips)) . '</p>',
+    );
+
+    if ($count_ips > 0) {
+      $form['not_empty'] = array(
+        '#type' => 'help',
+        '#markup' =>t('Use the buttons below to import inherited data and then delete the orphaned table, or delete the table without importing any data.'),
+      );
+
+      $form['reason'] = array(
+        '#title' => t('Optional: blocking reason for all imported records'),
+        '#type' => 'textfield',
+        '#maxlength' => 255,
+        '#default_value' => '',
+        '#description' => t('If this field is left blank, the value "Imported during migration" is used by default.'),
+      );
+
+      $form['actions'] = array('#type' => 'actions');
+      $form['actions']['import'] = array(
+        '#type' => 'submit',
+        '#value' => t('Import data then delete table'),
+      );
+      $form['actions']['delete'] = array(
+        '#type' => 'submit',
+        '#value' => t('Delete table without import'),
+        '#attributes' => array('class' => array('button-danger')),
+      );
+    }
+    else {
+      $form['empty'] = array(
+        '#type' => 'help',
+        '#markup' =>t('You can safely delete an empty table.'),
+      );
+
+      $form['actions'] = array('#type' => 'actions');
+      $form['actions']['delete'] = array(
+        '#type' => 'submit',
+        '#value' => t('Delete table'),
+      );
+    }
+    return $form;
+  }
+}
+
+/**
+ * Process ip_blocking_orphaned_table_form form submissions.
+ */
+function ip_blocking_orphaned_table_form_submit($form, &$form_state) {
+  global $user;
+  $uid = $user->uid;
+  $time = time();
+  $reason = 'Imported during migration';
+
+  if ($form_state['clicked_button']['#id'] == 'edit-import') {
+    if (!empty(trim($form_state['values']['reason']))) {
+      $reason = check_plain(trim($form_state['values']['reason']));
+    }
+
+    $transaction = db_transaction();
+    try {
+      $result = db_select('blocked_ips_d7', 'd7')
+        ->fields('d7', array('ip'))
+        ->execute();
+      $select = array();
+
+      foreach ($result as $row) {
+        $select[] = array(
+          'ip' => $row->ip,
+          'uid' => $uid,
+          'reason' => $reason,
+          'time' => $time,
+        );
+      }
+
+      $query = db_insert('blocked_ips')
+        ->fields(array('ip', 'uid', 'reason', 'time'));
+      foreach ($select as $record) {
+        $query->values($record);
+      }
+      $query->execute();
+    }
+    catch (Exception $e) {
+      $transaction->rollback();
+      watchdog_exception('ip_blocking_import', $e);
+    }
+
+    db_drop_table('blocked_ips_d7');
+    $message = t('Data from table "blocked_ips_d7" successfully imported, table deleted.');
+  }
+  else {
+    db_drop_table('blocked_ips_d7');
+    $message = t('Database table "blocked_ips_d7" has been deleted.');
+  }
+  backdrop_flush_all_caches();
+  backdrop_set_message($message);
+//  backdrop_goto(url('admin/config/people/ip-blocking'));
+  $form_state['redirect'] = 'admin/config/people/ip-blocking';
 }
