@@ -315,14 +315,14 @@ function ip_blocking_orphaned_table_form_submit($form, &$form_state) {
         $query->values($record);
       }
       $query->execute();
+
+      db_drop_table('blocked_ips_d7');
+      $message = t('Data from table "blocked_ips_d7" successfully imported, table deleted.');
     }
     catch (Exception $e) {
       $transaction->rollback();
       watchdog_exception('ip_blocking_import', $e);
     }
-
-    db_drop_table('blocked_ips_d7');
-    $message = t('Data from table "blocked_ips_d7" successfully imported, table deleted.');
   }
   else {
     db_drop_table('blocked_ips_d7');
@@ -330,6 +330,5 @@ function ip_blocking_orphaned_table_form_submit($form, &$form_state) {
   }
   backdrop_flush_all_caches();
   backdrop_set_message($message);
-//  backdrop_goto(url('admin/config/people/ip-blocking'));
   $form_state['redirect'] = 'admin/config/people/ip-blocking';
 }
