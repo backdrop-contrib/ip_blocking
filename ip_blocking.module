@@ -193,7 +193,14 @@ function ip_blocking_preprocess_block(&$variables) {
 
       if (in_array($type, $types)) {
         $link = ip_blocking_build_operations_links($ip, urlencode($message));
-        $variables['content']['dblog_table']['#rows'][8][1] .= $link;
+        $ops  = $variables['content']['dblog_table']['#rows'][8][1];
+
+        if (empty($ops)) {
+          $variables['content']['dblog_table']['#rows'][8][1] .= $link;
+        }
+        else {
+          $variables['content']['dblog_table']['#rows'][8][1] .= ' | '. $link;
+        }
       }
     }
   }
@@ -214,7 +221,7 @@ function ip_blocking_build_operations_links($ip, $message) {
       $abuse_ipdb_link = l('AbuseIPDB', 'https://www.abuseipdb.com/check/' . $ip,
         array('attributes' => array('target' => '_blank')));
 
-      return $action_link . ' - ' . t('Check status of this IP in') . ' ' . $abuse_ipdb_link;
+      return $action_link . ' | ' . t('Check status of this IP in') . ' ' . $abuse_ipdb_link;
     }
   }
 }
@@ -224,7 +231,7 @@ function ip_blocking_get_action_link($ip, $message) {
   $action_link = '';
   // If the IP is already blocked, display an unblock link or vice versa.
   if (ip_is_denied($ip)) {
-    $action_link .= '<b>' . t('IP @ip blocked', array('@ip' => $ip)) . '</b> - ';
+    $action_link .= '<b>' . t('IP @ip blocked', array('@ip' => $ip)) . '</b> | ';
     $action = 'unblock';
   }
   else {
