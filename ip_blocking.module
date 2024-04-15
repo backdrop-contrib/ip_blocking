@@ -293,7 +293,7 @@ function ip_blocking_block_ip($ip, $reason, $type) {
   $log_enabled = $config->get('log_enabled');
 
   if (backdrop_strlen($reason) > 250) {
-    $reason_dec = 'Request: ' . substr(urldecode($reason), 0, 250) . ' ... ';
+    $reason_dec = 'Request: ' . substr(urldecode($reason), 0, 245) . ' ... ';
   }
   else {
     $reason_dec  = 'Request: ' . urldecode($reason);

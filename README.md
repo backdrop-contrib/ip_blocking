@@ -60,7 +60,7 @@ When Backdrop served a cached page, the 'X-Backdrop-Cache: HIT' and 'cache-contr
 To avoid such messages and incorrect module actions (in such cases can not get in time to reject blocked IP) you have two options:
 
   - you can disable prefetching for cached pages: go to 'admin/config/development/performance' and within the 'Caching' fieldset uncheck the 'Use background fetch for cached pages' checkbox, then press the 'Save configuration' button;
-  - add the option '$settings['page_cache_invoke_hooks'] = TRUE;'   to your 'settings.php' file.
+  - add the option '$settings['page_cache_invoke_hooks'] = TRUE;' to your 'settings.php' file.
 
 Disabling prefetching for cached pages (first option) is sufficient to avoid such collisions in most cases.
 

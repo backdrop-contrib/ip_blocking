@@ -36,4 +36,9 @@
     margin-block-start: 1.35rem;
     margin-inline-end: 0;
   }
+
+  table td {
+    min-width: 8rem;
+    max-width: 34rem;
+  }
 }
