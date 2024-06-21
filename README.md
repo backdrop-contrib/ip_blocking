@@ -69,8 +69,8 @@ Note for Drupal 7 migration
 If you install this module on a site that has been upgraded from Drupal 7 and has blocked IPs (in the 'blocked_ips' table),
 this module will rename that table to 'blocked_ips_d7') and create its own 'blocked_ips' table with 4 additional columns: 'reason', 'uid, 'time' and 'type'.
 
-After installation, you can reimport previously blocked IPs from the 'blocked_ips_d7' table,
-or delete this table if you do not need it via the link on the "Status Report" page
+After installation, you can re-import previously blocked IPs from the 'blocked_ips_d7' table,
+or delete this table if you do not need it by using the link on the "Status Report" page
 or by going to 'admin/config/people/ip-blocking/orphaned_table'.
 
 License

@@ -16,7 +16,7 @@ function ip_blocking($default_ip = '') {
   $rows   = array();
   $header = array(
     array('data' => t('Blocked IP'), 'field' => 'ip'),
-    array('data' => t('Time'),       'field' => 'time', 'sort' => 'asc'),
+    array('data' => t('Time'),       'field' => 'time', 'sort' => 'desc'),
     array('data' => t('Blocker'),    'field' => 'uid'),
     array('data' => t('Reason'),     'field' => 'reason'),
     array('data' => t('Operations')),

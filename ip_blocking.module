@@ -292,11 +292,11 @@ function ip_blocking_block_ip($ip, $reason, $type) {
   $config      = config('ip_blocking.settings');
   $log_enabled = $config->get('log_enabled');
 
-  if (backdrop_strlen($reason) > 250) {
-    $reason_dec = 'Request: ' . substr(urldecode($reason), 0, 245) . ' ... ';
+  if (backdrop_strlen($reason) > 240) {
+    $reason_dec = 'Request: ' . substr($reason, 0, 200) . ' ... ';
   }
   else {
-    $reason_dec  = 'Request: ' . urldecode($reason);
+    $reason_dec  = 'Request: ' . $reason;
   }
 
   // Insert the record to DB.
