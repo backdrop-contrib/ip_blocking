@@ -20,11 +20,11 @@
   }
 
   #edit-ip {
-    width: 24rem; /* Chrome vs. FF ? */
+    width: 24rem;
   }
 
   #edit-reason {
-    width: 35rem; /* Chrome vs. FF ? */
+    width: 35rem;
   }
 
   #ip-blocking-form .form-actions {
@@ -40,5 +40,8 @@
   table td {
     min-width: 8rem;
     max-width: 34rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

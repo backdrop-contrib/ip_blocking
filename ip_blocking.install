@@ -179,3 +179,40 @@ function ip_blocking_update_1002() {
     db_add_field('blocked_ips', 'type', $spec);
   }
 }
+
+/**
+ * Deduplicate blocked IPs and enforce uniqueness on blocked_ips.ip
+ */
+function ip_blocking_update_1003() {
+  // Find duplicates.
+  $result = db_query("
+    SELECT ip
+    FROM {blocked_ips}
+    GROUP BY ip
+    HAVING COUNT(*) > 1
+  ");
+
+  foreach ($result as $row) {
+    $ip = $row->ip;
+
+    // Keep the most recent row for this IP.
+    $keep_iid = db_query("
+      SELECT iid
+      FROM {blocked_ips}
+      WHERE ip = :ip
+      ORDER BY time DESC, iid DESC
+      LIMIT 1
+    ", array(':ip' => $ip))->fetchField();
+
+    // Delete the rest.
+    db_delete('blocked_ips')
+      ->condition('ip', $ip)
+      ->condition('iid', (int) $keep_iid, '!=')
+      ->execute();
+  }
+
+  // Add a unique key to prevent duplicates.
+  if (!db_index_exists('blocked_ips', 'ip_unique')) {
+    db_add_unique_key('blocked_ips', 'ip_unique', array('ip'));
+  }
+}

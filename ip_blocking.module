@@ -119,7 +119,7 @@ function ip_blocking_boot() {
     $ua_string   = isset($_SERVER['HTTP_USER_AGENT']) ? htmlspecialchars($_SERVER['HTTP_USER_AGENT']) : '';
 
     if($return_404) {
-      header($_SERVER['SERVER_PROTOCOL'] . ' 404  Not Found');
+      header($_SERVER['SERVER_PROTOCOL'] . ' 404 Not Found');
     }
     else {
       header($_SERVER['SERVER_PROTOCOL'] . ' 403 Forbidden');
@@ -299,10 +299,32 @@ function ip_blocking_block_ip($ip, $reason, $type) {
     $reason_dec  = 'Request: ' . $reason;
   }
 
-  // Insert the record to DB.
-  db_insert('blocked_ips')
-    ->fields(array('ip' => $ip, 'reason' => $reason_dec, 'time' => time(), 'uid' => $uid, 'type' => $type))
-    ->execute();
+  // Insert/update the record in DB.
+  $existing_iid = db_query(
+    "SELECT iid FROM {blocked_ips} WHERE ip = :ip",
+    array(':ip' => $ip)
+  )->fetchField();
+
+  $fields = array(
+    'ip' => $ip,
+    'reason' => $reason_dec,
+    'time' => time(),
+    'uid' => $uid,
+    'type' => $type,
+  );
+
+  if ($existing_iid) {
+    // Update existing record instead of creating duplicates.
+    db_update('blocked_ips')
+      ->fields($fields)
+      ->condition('iid', (int) $existing_iid)
+      ->execute();
+  }
+  else {
+    db_insert('blocked_ips')
+      ->fields($fields)
+      ->execute();
+  }
 
   if ($log_enabled) {
     watchdog(

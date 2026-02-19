@@ -288,7 +288,7 @@ function ip_blocking_orphaned_table_form_submit($form, &$form_state) {
   $time = time();
   $reason = 'Imported during migration';
 
-  if ($form_state['clicked_button']['#id'] == 'edit-import') {
+  if ($form_state['triggering_element']['#id'] == 'edit-import') {
     if (!empty(trim($form_state['values']['reason']))) {
       $reason = check_plain(trim($form_state['values']['reason']));
     }
