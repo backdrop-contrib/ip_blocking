@@ -114,6 +114,79 @@ function ip_blocking_schema() {
     'primary key' => array('iid'),
   );
 
+  $schema['blocked_ip_ranges'] = array(
+    'description' => 'Stores blocked IP ranges (IPv4/IPv6).',
+    'fields' => array(
+      'rid' => array(
+        'description' => 'Primary Key: Unique ID for IP ranges.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'ip_family' => array(
+        'description' => 'IP family: 4 or 6.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 4,
+      ),
+      'ip_start' => array(
+        'description' => 'Range start (16-byte binary).',
+        'type' => 'varchar',
+        'length' => 16,
+        'binary' => TRUE,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'ip_end' => array(
+        'description' => 'Range end (16-byte binary).',
+        'type' => 'varchar',
+        'length' => 16,
+        'binary' => TRUE,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'range_label' => array(
+        'description' => 'Canonical range label (CIDR or start-end).',
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'reason' => array(
+        'description' => 'Reason of blocking.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+      ),
+      'uid' => array(
+        'description' => 'User identifier.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'time' => array(
+        'description' => 'Unix timestamp of when range blocked.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'type' => array(
+        'description' => 'Type of event.',
+        'type' => 'varchar',
+        'length' => 15,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+    ),
+    'primary key' => array('rid'),
+    'indexes' => array(
+      'family_start' => array('ip_family', 'ip_start'),
+      'family_end' => array('ip_family', 'ip_end'),
+    ),
+  );
+
   return $schema;
 }
 
@@ -214,5 +287,27 @@ function ip_blocking_update_1003() {
   // Add a unique key to prevent duplicates.
   if (!db_index_exists('blocked_ips', 'ip_unique')) {
     db_add_unique_key('blocked_ips', 'ip_unique', array('ip'));
+  }
+}
+
+/**
+ * Create blocked_ip_ranges table for CIDR / IP range blocking.
+ */
+function ip_blocking_update_1004() {
+  if (!db_table_exists('blocked_ip_ranges')) {
+    $schema = ip_blocking_schema();
+    db_create_table('blocked_ip_ranges', $schema['blocked_ip_ranges']);
+  }
+
+  $connection = Database::getConnection();
+  if ($connection->databaseType() === 'mysql') {
+    try {
+      // Ensure binary storage; inet_pton() bytes must not go into utf8mb4 varchar.
+      db_query("ALTER TABLE {blocked_ip_ranges} MODIFY ip_start VARBINARY(16) NOT NULL DEFAULT ''");
+      db_query("ALTER TABLE {blocked_ip_ranges} MODIFY ip_end   VARBINARY(16) NOT NULL DEFAULT ''");
+    }
+    catch (Exception $e) {
+      watchdog('ip_blocking', 'Update 1004 failed to enforce VARBINARY(16) on blocked_ip_ranges: @msg', array('@msg' => $e->getMessage()), WATCHDOG_ERROR);
+    }
   }
 }

@@ -57,7 +57,7 @@ function ip_blocking_menu() {
     'page arguments' => array('ip_blocking_settings_form'),
     'file' => 'ip_blocking.admin.inc',
     'access arguments' => array('block IP addresses'),
-    'weight' => 2,
+    'weight' => 3,
   );
 
   if (db_table_exists('blocked_ips_d7')) {
@@ -68,7 +68,7 @@ function ip_blocking_menu() {
       'page arguments' => array('ip_blocking_orphaned_table_form'),
       'file' => 'ip_blocking.admin.inc',
       'access arguments' => array('block IP addresses'),
-      'weight' => 3,
+      'weight' => 5,
     );
   }
 
@@ -98,6 +98,23 @@ function ip_blocking_menu() {
     'page arguments' => array(3),
     'access arguments' => array('block IP addresses'),
     'type' => MENU_CALLBACK,
+  );
+
+  $items['admin/config/people/ip-blocking/ranges'] = array(
+    'title' => 'Ranges',
+    'type' => MENU_LOCAL_TASK,
+    'page callback' => 'ip_blocking_ranges_page',
+    'access arguments' => array('block IP addresses'),
+    'file' => 'ip_blocking.admin.inc',
+    'weight' => 2,
+  );
+
+  $items['admin/config/people/ip-blocking/unblock_range/%'] = array(
+    'title' => 'Unblock IP range',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('ip_blocking_unblock_range', 5),
+    'access arguments' => array('block IP addresses'),
+    'file' => 'ip_blocking.admin.inc',
   );
 
   return $items;
@@ -143,13 +160,31 @@ function ip_blocking_boot() {
  * @return bool TRUE if access is denied, FALSE if access is allowed.
  */
 function ip_is_denied($ip) {
-  $denied = FALSE;
-
-  if (class_exists('Database', FALSE)) {
-    $denied = (bool)db_query("SELECT 1 FROM {blocked_ips} WHERE ip = :ip", array(':ip' => $ip))->fetchField();
+  if (!class_exists('Database', FALSE)) {
+    return FALSE;
   }
 
-  return $denied;
+  // Exact IP match
+  $denied = (bool) db_query(
+    "SELECT 1 FROM {blocked_ips} WHERE ip = :ip",
+    array(':ip' => $ip)
+  )->fetchField();
+
+  if ($denied) {
+    return TRUE;
+  }
+
+  // Range match
+  if (!db_table_exists('blocked_ip_ranges')) {
+    return FALSE;
+  }
+
+  $info = ip_blocking_ip_to_bin($ip);
+  if (!$info) {
+    return FALSE;
+  }
+
+  return ip_blocking_range_is_denied($info['family'], $info['bin']);
 }
 
 /**
@@ -373,4 +408,174 @@ function ip_blocking_unblock_ip($ip) {
       WATCHDOG_WARNING
     );
   }
+}
+
+function ip_blocking_ip_to_bin($ip) {
+  if (!filter_var($ip, FILTER_VALIDATE_IP)) {
+    return FALSE;
+  }
+
+  $packed = @inet_pton($ip);
+  if ($packed === FALSE) {
+    return FALSE;
+  }
+
+  if (strlen($packed) === 4) {
+    return array(
+      'family' => 4,
+      'bin' => str_repeat("\x00", 12) . $packed,
+    );
+  }
+
+  if (strlen($packed) === 16) {
+    return array(
+      'family' => 6,
+      'bin' => $packed,
+    );
+  }
+
+  return FALSE;
+}
+
+function ip_blocking_range_is_denied($family, $ip_bin_16) {
+  return (bool) db_query(
+    "SELECT 1
+     FROM {blocked_ip_ranges}
+     WHERE ip_family = :family
+       AND ip_start <= :ip_bin
+       AND ip_end >= :ip_bin
+     LIMIT 1",
+    array(
+      ':family' => (int) $family,
+      ':ip_bin' => $ip_bin_16,
+    )
+  )->fetchField();
+}
+
+function ip_blocking_parse_range($input) {
+  $input = trim($input);
+
+  // CIDR.
+  if (strpos($input, '/') !== FALSE) {
+    list($base_ip, $prefix) = explode('/', $input, 2);
+    $base_ip = trim($base_ip);
+    $prefix = trim($prefix);
+
+    if ($prefix === '' || !ctype_digit($prefix)) {
+      return FALSE;
+    }
+    $prefix = (int) $prefix;
+
+    $info = ip_blocking_ip_to_bin($base_ip);
+    if (!$info) {
+      return FALSE;
+    }
+
+    $max = ($info['family'] === 4) ? 32 : 128;
+    if ($prefix < 0 || $prefix > $max) {
+      return FALSE;
+    }
+
+    // For IPv4 we store as 12 zero bytes + 4 bytes IPv4.
+    // CIDR must be applied to the last 32 bits, i.e. offset by 96 bits.
+    $effective_prefix = $prefix;
+    if ($info['family'] === 4) {
+      $effective_prefix = 96 + $prefix;
+    }
+
+    $start = ip_blocking_apply_prefix($info['bin'], $effective_prefix);
+    $end = ip_blocking_apply_prefix_end($info['bin'], $effective_prefix);
+
+    return array(
+      'family' => $info['family'],
+      'start_bin' => $start,
+      'end_bin' => $end,
+      'label' => trim(strtolower($base_ip . '/' . $prefix)),
+    );
+  }
+
+  // Explicit range "a-b".
+  if (strpos($input, '-') !== FALSE) {
+    list($a, $b) = explode('-', $input, 2);
+    $a = trim($a);
+    $b = trim($b);
+
+    $ia = ip_blocking_ip_to_bin($a);
+    $ib = ip_blocking_ip_to_bin($b);
+    if (!$ia || !$ib) {
+      return FALSE;
+    }
+    if ($ia['family'] !== $ib['family']) {
+      return FALSE;
+    }
+
+    $start = $ia['bin'];
+    $end = $ib['bin'];
+
+    // Ensure start <= end; swap if needed.
+    if (strcmp($start, $end) > 0) {
+      $tmp = $start; $start = $end; $end = $tmp;
+      $tmp = $a; $a = $b; $b = $tmp;
+    }
+
+    return array(
+      'family' => $ia['family'],
+      'start_bin' => $start,
+      'end_bin' => $end,
+      'label' => trim(strtolower($a . '-' . $b)),
+    );
+  }
+
+  return FALSE;
+}
+
+function ip_blocking_apply_prefix($bin_16, $prefix) {
+  $bytes = array_values(unpack('C*', $bin_16));
+  $out = array();
+
+  $bits_left = $prefix;
+  for ($i = 0; $i < 16; $i++) {
+    if ($bits_left >= 8) {
+      $out[$i] = $bytes[$i];
+      $bits_left -= 8;
+      continue;
+    }
+
+    if ($bits_left <= 0) {
+      $out[$i] = 0;
+      continue;
+    }
+
+    $mask = (0xFF << (8 - $bits_left)) & 0xFF;
+    $out[$i] = $bytes[$i] & $mask;
+    $bits_left = 0;
+  }
+
+  return pack('C*', ...$out);
+}
+
+function ip_blocking_apply_prefix_end($bin_16, $prefix) {
+  $start = ip_blocking_apply_prefix($bin_16, $prefix);
+  $bytes = array_values(unpack('C*', $start));
+  $out = array();
+
+  $bits_left = $prefix;
+  for ($i = 0; $i < 16; $i++) {
+    if ($bits_left >= 8) {
+      $out[$i] = $bytes[$i];
+      $bits_left -= 8;
+      continue;
+    }
+
+    if ($bits_left <= 0) {
+      $out[$i] = 255;
+      continue;
+    }
+
+    $host_mask = (1 << (8 - $bits_left)) - 1;
+    $out[$i] = $bytes[$i] | $host_mask;
+    $bits_left = 0;
+  }
+
+  return pack('C*', ...$out);
 }

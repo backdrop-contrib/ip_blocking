@@ -88,8 +88,6 @@ function ip_blocking_form($form, &$form_state, $default_ip) {
     '#description' => t('Enter a valid IP address.'),
     '#prefix' => '<p>' . t('The IP addresses listed below are blocked from this site. Blocked addresses will be completely denied access to the site and will instead see a short message explaining the situation or a 404 error page (of your choice using the "Settings" tab above).') .
     '<br>' . t('From the "Operations" column you can unblock any IP and check its status in AbuseIPDB (opens in a new tab).') . '</p>',
-
-
   );
   $form['reason'] = array(
     '#title' => t('Reason for blocking (optional)'),
@@ -331,4 +329,204 @@ function ip_blocking_orphaned_table_form_submit($form, &$form_state) {
   backdrop_flush_all_caches();
   backdrop_set_message($message);
   $form_state['redirect'] = 'admin/config/people/ip-blocking';
+}
+
+function ip_blocking_ranges_page() {
+  $config = config('ip_blocking.settings');
+  $number_of_items = (int) $config->get('number_of_items');
+  if ($number_of_items <= 0) {
+    $number_of_items = 50;
+  }
+
+  $header = array(
+    array('data' => t('Range'), 'field' => 'range_label'),
+    array('data' => t('Time'), 'field' => 'time', 'sort' => 'desc'),
+    array('data' => t('Blocker'), 'field' => 'uid'),
+    array('data' => t('Reason'), 'field' => 'reason'),
+    array('data' => t('Operations')),
+  );
+
+  $rows = array();
+
+  if (db_table_exists('blocked_ip_ranges')) {
+    $select = db_select('blocked_ip_ranges', 'r')
+      ->extend('PagerDefault')
+      ->extend('TableSort');
+
+    $select->fields('r', array('rid', 'range_label', 'reason', 'uid', 'time'))
+      ->limit($number_of_items)
+      ->orderByHeader($header);
+
+    $results = $select->execute();
+
+    foreach ($results as $r) {
+      $time = !empty($r->time) ? format_date($r->time, 'short') : t('N/A');
+
+      if (!empty($r->uid)) {
+        if (defined('ANTISCAN_MODULE_UID') && $r->uid == ANTISCAN_MODULE_UID) {
+          $username = t('Antiscan module');
+        }
+        else {
+          $account = user_load($r->uid);
+          $username = $account ? $account->name : t('N/A');
+        }
+      }
+      else {
+        $username = t('N/A');
+      }
+
+      $ops = l(
+        t('unblock'),
+        "admin/config/people/ip-blocking/unblock_range/{$r->rid}",
+        array('attributes' => array('title' => t('Unblock this range'))))
+        . '&nbsp;|&nbsp;' .
+        l(t('check'), "https://www.abuseipdb.com/check-block/{$r->range_label}",
+          array('attributes' => array('target' => '_blank', 'title' => 'Check IP range status in AbuseIPDB')));
+
+      $rows[] = array(
+        check_plain($r->range_label),
+        $time,
+        check_plain($username),
+        check_plain($r->reason),
+        $ops,
+      );
+    }
+  }
+
+  $build = array();
+  $build['range_form'] = backdrop_get_form('ip_blocking_ranges_form');
+
+  $output = backdrop_render($build);
+  $output .= theme('table', array('header' => $header, 'rows' => $rows));
+  $output .= theme('pager');
+
+  return $output;
+}
+
+function ip_blocking_ranges_form($form, &$form_state) {
+  $form['#attached']['css'] = array(
+    backdrop_get_path('module', 'ip_blocking') . '/css/ip_blocking.admin.css',
+  );
+
+  $form['range_label'] = array(
+    '#title' => t('Add IP range to blocked list'),
+    '#type' => 'textfield',
+    '#size' => 48,
+    '#maxlength' => 64,
+    '#default_value' => '',
+    '#description' => t('Enter a CIDR (e.g. 1.2.3.0/24 or 2001:db8::/32)')
+      . '<br>'
+      . t('or an explicit range (e.g. 1.2.3.4-1.2.3.9).'),
+    '#prefix' => '<p>' . t('The IP ranges listed below are blocked from this site. Blocked IP ranges will be completely denied access to the site and will instead see a short message explaining the situation or a 404 error page (of your choice using the "Settings" tab above).') .
+      '<br>' . t('From the "Operations" column you can unblock any IP range and check its status in AbuseIPDB (opens in a new tab).') . '</p>',
+  );
+
+  $form['reason'] = array(
+    '#title' => t('Reason for blocking (optional)'),
+    '#type' => 'textfield',
+    '#size' => 52,
+    '#maxlength' => 255,
+    '#default_value' => '',
+    '#description' => t('Short description of the reason for blocking this IP range, e.g: "DDoS subnet".'),
+  );
+
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add'),
+  );
+
+  $form['#validate'][] = 'ip_blocking_ranges_form_validate';
+  $form['#submit'][] = 'ip_blocking_ranges_form_submit';
+
+  return $form;
+}
+
+function ip_blocking_ranges_form_validate($form, &$form_state) {
+  $range_label = trim($form_state['values']['range_label']);
+  $parsed = ip_blocking_parse_range($range_label);
+  if (!$parsed) {
+    form_set_error('range_label', t('Enter a valid CIDR or IP range.'));
+    return;
+  }
+
+  $my_ip = ip_address();
+  $my_info = ip_blocking_ip_to_bin($my_ip);
+  if ($my_info && $my_info['family'] == $parsed['family']) {
+    if (strcmp($parsed['start_bin'], $my_info['bin']) <= 0 && strcmp($parsed['end_bin'], $my_info['bin']) >= 0) {
+      form_set_error('range_label', t('You can not block your own IP address.'));
+      return;
+    }
+  }
+
+  if (!db_table_exists('blocked_ip_ranges')) {
+    form_set_error('range_label', t('Range blocking is not available (missing database table). Run update.php.'));
+    return;
+  }
+
+  $exists = db_query(
+    "SELECT 1 FROM {blocked_ip_ranges} WHERE range_label = :range_label",
+    array(':range_label' => $parsed['label'])
+  )->fetchField();
+
+  if ($exists) {
+    form_set_error('range_label', t('This IP range is already blocked.'));
+    return;
+  }
+
+  $form_state['ip_blocking_parsed_range'] = $parsed;
+}
+
+function ip_blocking_ranges_form_submit($form, &$form_state) {
+  global $user;
+
+  $parsed = $form_state['ip_blocking_parsed_range'];
+  $reason = trim($form_state['values']['reason']);
+
+  db_insert('blocked_ip_ranges')->fields(array(
+    'ip_family' => (int) $parsed['family'],
+    'ip_start' => $parsed['start_bin'],
+    'ip_end' => $parsed['end_bin'],
+    'range_label' => $parsed['label'],
+    'reason' => $reason,
+    'uid' => (int) $user->uid,
+    'time' => time(),
+    'type' => 'admin_form',
+  ))->execute();
+
+  backdrop_set_message(t('The range %range has been blocked.', array('%range' => $parsed['label'])));
+  $form_state['redirect'] = 'admin/config/people/ip-blocking/ranges';
+}
+
+function ip_blocking_unblock_range($form, &$form_state, $rid) {
+  $row = db_query(
+    "SELECT rid, range_label FROM {blocked_ip_ranges} WHERE rid = :rid",
+    array(':rid' => (int) $rid)
+  )->fetchAssoc();
+
+  if (!$row) {
+    backdrop_set_message(t('Range not found.'), 'error');
+    $form_state['redirect'] = 'admin/config/people/ip-blocking/ranges';
+    return array();
+  }
+
+  $form['rid'] = array('#type' => 'value', '#value' => (int) $row['rid']);
+  $form['#submit'][] = 'ip_blocking_unblock_range_submit';
+
+  return confirm_form(
+    $form,
+    t('Are you sure you want to unblock %range?', array('%range' => $row['range_label'])),
+    'admin/config/people/ip-blocking/ranges',
+    t('This action cannot be undone.'),
+    t('Unblock'),
+    t('Cancel')
+  );
+}
+
+function ip_blocking_unblock_range_submit($form, &$form_state) {
+  $rid = (int) $form_state['values']['rid'];
+  db_delete('blocked_ip_ranges')->condition('rid', $rid)->execute();
+
+  backdrop_set_message(t('The range has been unblocked.'));
+  $form_state['redirect'] = 'admin/config/people/ip-blocking/ranges';
 }

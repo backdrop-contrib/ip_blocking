@@ -4,4 +4,4 @@ package = Spam control
 backdrop = 1.x
 type = module
 configure = admin/config/people/ip-blocking
-version = 1.0.18
+version = 1.0.19

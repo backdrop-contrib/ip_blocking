@@ -3,7 +3,7 @@ IP Address Blocking
 
 Allows you to block IP addresses.
 This module restores the lost functionality from the Drupal core.
-It also comes with a number of improvements.
+It also comes with a significant number of improvements.
 
 Options available:
 
@@ -17,6 +17,23 @@ Options available:
     automatically block IP addresses used by bad crawlers or vulnerability scanners;
   - use the "AbuseIPDB Report" module (https://backdropcms.org/project/abuseipdb_report) to send
     manual or automatic reports to the [AbuseIPDB](https://www.abuseipdb.com/) database.
+
+---
+**New in version 1.0.19 – IP range blocking (CIDR support)**
+
+The module now supports blocking entire IP ranges in addition to individual IP addresses.
+
+Administrators can block:
+
+- IPv4 CIDR ranges (e.g. 192.168.10.0/24)
+- IPv6 CIDR ranges (e.g. 2001:db8::/32)
+- Explicit ranges (e.g. 10.0.0.5-10.0.0.25)
+
+A new "Ranges" tab is available at "admin/config/people/ip-blocking/ranges"
+
+Blocked ranges are evaluated in addition to single IP blocks.
+
+---
 
 Installation
 ------------
