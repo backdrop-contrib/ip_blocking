@@ -81,6 +81,15 @@ To avoid such messages and incorrect module actions (in such cases can not get i
 
 Disabling prefetching for cached pages (first option) is sufficient to avoid such collisions in most cases.
 
+Known notice when using Schema module
+-------------------------------------
+When the contributed Schema module is enabled, it may report warnings for
+`blocked_ip_ranges.ip_start` and `blocked_ip_ranges.ip_end` because these
+columns use MySQL `VARBINARY(16)` storage.
+
+This does not affect IP blocking functionality. The binary columns are used to
+store packed IP range boundaries for reliable IPv4/IPv6 comparison.
+
 Note for Drupal 7 migration
 ---------------------------
 If you install this module on a site that has been upgraded from Drupal 7 and has blocked IPs (in the 'blocked_ips' table),
