@@ -311,3 +311,52 @@ function ip_blocking_update_1004() {
     }
   }
 }
+
+/**
+ * Implements hook_install().
+ */
+function ip_blocking_install() {
+  ip_blocking_ensure_range_binary_storage();
+}
+
+/**
+ * Ensure packed IP range boundaries use binary storage.
+ */
+function ip_blocking_ensure_range_binary_storage() {
+  if (Database::getConnection()->databaseType() !== 'mysql') {
+    return;
+  }
+
+  if (!db_table_exists('blocked_ip_ranges')) {
+    throw new Exception('Missing blocked_ip_ranges table.');
+  }
+
+  $types = array();
+  $result = db_query("SHOW COLUMNS FROM {blocked_ip_ranges}");
+  foreach ($result as $column) {
+    $types[$column->Field] = strtolower($column->Type);
+  }
+
+  if (!isset($types['ip_start'], $types['ip_end'])) {
+    throw new Exception('Missing IP range boundary columns.');
+  }
+
+  if ($types['ip_start'] !== 'varbinary(16)' ||
+    $types['ip_end'] !== 'varbinary(16)') {
+    db_query("ALTER TABLE {blocked_ip_ranges}
+      MODIFY ip_start VARBINARY(16) NOT NULL DEFAULT '',
+      MODIFY ip_end VARBINARY(16) NOT NULL DEFAULT ''");
+  }
+}
+
+/**
+ * Correct database schema inconsistencies from version 1.0.19.
+ */
+function ip_blocking_update_1005() {
+  ip_blocking_ensure_range_binary_storage();
+
+  // Fresh 1.0.19 installations may be missing the unique IP index.
+  if (!db_index_exists('blocked_ips', 'ip_unique')) {
+    ip_blocking_update_1003();
+  }
+}
